@@ -112,7 +112,7 @@ function Status({ value }: { value: string }) {
 
 export default function App() {
   const [page, setPage] = useState<Page>("Dashboard");
-  const [search, setSearch] = useState("");
+ const [, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [backendOnline, setBackendOnline] = useState(false);
 
