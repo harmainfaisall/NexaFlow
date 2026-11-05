@@ -1,6 +1,3 @@
-const dns = require("node:dns");
-dns.setServers(["8.8.8.8", "8.8.4.4"]);
-
 require("dotenv").config();
 
 const express = require("express");
@@ -10,19 +7,70 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 
-if (
-  !process.env.JWT_SECRET ||
-  !process.env.ADMIN_SETUP_KEY ||
-  !process.env.MONGO_URI
-) {
-  console.error("Required environment variables are missing.");
-  process.exit(1);
+// Reuse MongoDB connection across Vercel function invocations.
+let dbConnectionPromise = null;
+let migrationPromise = null;
+
+async function connectToDatabase() {
+  if (
+    !process.env.MONGO_URI ||
+    !process.env.JWT_SECRET ||
+    !process.env.ADMIN_SETUP_KEY
+  ) {
+    throw new Error("Required environment variables are missing.");
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    if (
+      mongoose.connection.readyState === 0 ||
+      mongoose.connection.readyState === 3
+    ) {
+      dbConnectionPromise = null;
+    }
+
+    if (!dbConnectionPromise) {
+      dbConnectionPromise = mongoose.connect(process.env.MONGO_URI)
+        .catch((error) => {
+          dbConnectionPromise = null;
+          throw error;
+        });
+    }
+
+    await dbConnectionPromise;
+  }
+
+  if (!migrationPromise) {
+    migrationPromise = migrateLegacyData()
+      .then((migrated) => {
+        if (!migrated) {
+          migrationPromise = null;
+        }
+      })
+      .catch((error) => {
+        migrationPromise = null;
+        throw error;
+      });
+  }
+
+  await migrationPromise;
 }
+
+// Every API request waits for the database to be ready.
+app.use(async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    console.error("Database initialization error:", error.message);
+    res.status(503).json({
+      message: "Service temporarily unavailable. Please try again."
+    });
+  }
+});
 
 const userIdField = {
   type: mongoose.Schema.Types.ObjectId,
@@ -449,13 +497,13 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// Current logged-in user
-app.get("/api/auth/me", authenticateToken, (req, res) => {
+// Current logged-in userapp.get("/api/auth/me", authenticateToken, (req, res) => {
   res.json(req.admin);
-});
+
 
 // Protect all remaining API routes
 app.use("/api", authenticateToken);
+
 // Customer routes
 
 app.get("/api/customers", async (req, res) => {
@@ -841,7 +889,7 @@ app.post("/api/orders", async (req, res) => {
     await session.endSession();
   }
 });
-
+// Update order status
 app.put("/api/orders/:id", async (req, res) => {
   const session = await mongoose.startSession();
 
@@ -993,6 +1041,7 @@ app.put("/api/orders/:id", async (req, res) => {
   }
 });
 
+// Delete order
 app.delete("/api/orders/:id", async (req, res) => {
   try {
     const order = await Order.findOne({
@@ -1035,6 +1084,7 @@ app.delete("/api/orders/:id", async (req, res) => {
     });
   }
 });
+
 // Inventory routes
 
 app.get("/api/inventory", async (req, res) => {
@@ -1369,6 +1419,7 @@ app.delete("/api/notifications", async (req, res) => {
     });
   }
 });
+
 // Migrate existing data to the original Admin account
 async function migrateLegacyData() {
   try {
@@ -1378,8 +1429,8 @@ async function migrateLegacyData() {
     });
 
     if (!owner) {
-      console.log("No existing account found. Migration skipped.");
-      return;
+      console.log("No existing account found. Migration will retry later.");
+      return false;
     }
 
     const models = [
@@ -1412,26 +1463,13 @@ async function migrateLegacyData() {
     console.log(
       `Existing data assigned to Admin: ${owner.email}`
     );
+
+    return true;
   } catch (error) {
     console.error("Data migration failed:", error);
     throw error;
   }
 }
 
-// Connect MongoDB Atlas and start server
-mongoose.connect(process.env.MONGO_URI)
-  .then(async () => {
-    console.log("MongoDB Atlas connected");
-
-    await migrateLegacyData();
-
-    app.listen(PORT, () => {
-      console.log(`Backend running on port ${PORT}`);
-    });
-  })
-  .catch((error) => {
-    console.error(
-      "MongoDB connection or migration failed:",
-      error.message
-    );
-  });
+// Export Express app for Vercel Serverless deployment
+module.exports = app;
