@@ -1,4 +1,5 @@
-const API_URL = "http://localhost:3000";
+
+const API_URL = "https://nexa-flow-projectb.vercel.app";
 
 export function getToken(): string | null {
   return localStorage.getItem("nexaflow_token");
