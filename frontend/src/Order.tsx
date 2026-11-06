@@ -1,4 +1,3 @@
-
 import { useEffect, useState, type FormEvent } from "react";
 import { apiFetch } from "./api";
 
@@ -1002,6 +1001,7 @@ export default function Order() {
                         max={availableQuantity}
                         step="1"
                         value={item.quantity}
+                        onFocus={(e) => e.currentTarget.select()}
                         onChange={(e) =>
                           updateQuantity(index, Number(e.target.value))
                         }
