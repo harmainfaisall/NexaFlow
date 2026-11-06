@@ -445,6 +445,8 @@ app.post("/api/auth/signup", async (req, res) => {
 });
 
 // LOGIN
+
+ // LOGIN
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -502,6 +504,63 @@ app.post("/api/auth/login", async (req, res) => {
 
     res.status(500).json({
       message: "Unable to login"
+    });
+  }
+});
+
+// TEMPORARY ADMIN PASSWORD RESET
+app.post("/api/auth/reset-admin-password", async (req, res) => {
+  try {
+    const { email, newPassword, setupKey } = req.body;
+
+    if (setupKey !== process.env.ADMIN_SETUP_KEY) {
+      return res.status(403).json({
+        message: "Invalid setup key"
+      });
+    }
+
+    if (
+      typeof email !== "string" ||
+      !email.trim() ||
+      typeof newPassword !== "string" ||
+      newPassword.length < 8
+    ) {
+      return res.status(400).json({
+        message: "Valid email and password of at least 8 characters required"
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    const admin = await Admin.findOneAndUpdate(
+      {
+        email: email.trim().toLowerCase(),
+        role: "Administrator"
+      },
+      {
+        $set: {
+          password: hashedPassword
+        }
+      },
+      {
+        new: true
+      }
+    );
+
+    if (!admin) {
+      return res.status(404).json({
+        message: "Administrator account not found"
+      });
+    }
+
+    res.json({
+      message: "Admin password reset successfully"
+    });
+  } catch (error) {
+    console.error("Password reset error:", error);
+
+    res.status(500).json({
+      message: "Unable to reset password"
     });
   }
 });
