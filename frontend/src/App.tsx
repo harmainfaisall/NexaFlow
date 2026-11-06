@@ -837,10 +837,10 @@ export default function App() {
             <span className="coming-soon">COMING SOON</span>
           </div>
 
-          <div className="connection">
+          {/* <div className="connection">
             <span className={backendOnline ? "dot green" : "dot red"} />
             {backendOnline ? "Backend Connected" : "Backend Offline"}
-          </div>
+          </div> */}
         </div>
       </aside>
 
@@ -861,10 +861,10 @@ export default function App() {
           </div>
 
           <div className="top-actions">
-            <span className="health">
+            {/* <span className="health">
               <span className={backendOnline ? "dot green" : "dot red"} />
               {backendOnline ? "Live system health" : "Backend offline"}
-            </span>
+            </span> */}
 
             <button
               className="bell"
