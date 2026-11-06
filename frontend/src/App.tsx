@@ -1,4 +1,3 @@
-
 import Auth from "./Auth";
 import { apiFetch, getToken, removeToken } from "./api";
 import Inventory from "./Inventory";
@@ -62,8 +61,6 @@ interface AuthUser {
   role: string;
 }
 
-const API_URL = "http://localhost:3000";
-
 const menu = [
   { name: "Dashboard", icon: LayoutDashboard },
   { name: "Customers", icon: Users },
@@ -99,12 +96,13 @@ function Panel({
 
 function Status({ value }: { value: string }) {
   return (
-    <span className={`status ${value === "Completed" || value === "Active"
+    <span className={`status ${
+      value === "Completed" || value === "Active"
         ? "success"
         : value === "Processing"
           ? "info"
           : "warning"
-      }`}>
+    }`}>
       ● {value}
     </span>
   );
@@ -112,7 +110,7 @@ function Status({ value }: { value: string }) {
 
 export default function App() {
   const [page, setPage] = useState<Page>("Dashboard");
- const [, setSearch] = useState("");
+  const [, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [backendOnline, setBackendOnline] = useState(false);
 
@@ -193,26 +191,36 @@ export default function App() {
 
   // Check backend health
   useEffect(() => {
+    let isActive = true;
+
     const checkBackend = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/health`);
+        const response = await apiFetch("/api/health");
 
         if (!response.ok) {
           throw new Error("Backend offline");
         }
 
         const data = await response.json();
-        setBackendOnline(data.status === "healthy");
+
+        if (isActive) {
+          setBackendOnline(data.status === "healthy");
+        }
       } catch {
-        setBackendOnline(false);
+        if (isActive) {
+          setBackendOnline(false);
+        }
       }
     };
 
     checkBackend();
 
-    const interval = window.setInterval(checkBackend, 5000);
+    const interval = window.setInterval(checkBackend, 10000);
 
-    return () => window.clearInterval(interval);
+    return () => {
+      isActive = false;
+      window.clearInterval(interval);
+    };
   }, []);
 
   // Fetch dashboard data
@@ -409,8 +417,7 @@ export default function App() {
     setSearch("");
     setSidebarOpen(false);
   }
-
-  // Calculate dashboard statistics
+    // Calculate dashboard statistics
   const totalCustomers = customers.length;
   const totalOrders = orders.length;
 
@@ -448,6 +455,7 @@ export default function App() {
         startOfWeek.setHours(0, 0, 0, 0);
 
         const day = startOfWeek.getDay();
+
         startOfWeek.setDate(
           startOfWeek.getDate() - (day === 0 ? 6 : day - 1)
         );
@@ -501,6 +509,7 @@ export default function App() {
         date.setHours(0, 0, 0, 0);
 
         const day = date.getDay();
+
         date.setDate(
           date.getDate() - (day === 0 ? 6 : day - 1) + index
         );
@@ -890,6 +899,7 @@ export default function App() {
             </button>
           </div>
         </header>
+
         {showNotifications && (
           <>
             <div
@@ -947,8 +957,9 @@ export default function App() {
                   notifications.map((notification) => (
                     <div
                       key={notification._id}
-                      className={`notification-item ${notification.isRead ? "read" : "unread"
-                        }`}
+                      className={`notification-item ${
+                        notification.isRead ? "read" : "unread"
+                      }`}
                       onClick={() => {
                         if (!notification.isRead) {
                           markAsRead(notification._id);
@@ -959,12 +970,15 @@ export default function App() {
                         {notification.type === "customer" && (
                           <Users size={18} />
                         )}
+
                         {notification.type === "order" && (
                           <ShoppingBag size={18} />
                         )}
+
                         {notification.type === "inventory" && (
                           <Package size={18} />
                         )}
+
                         {notification.type === "stock" && (
                           <Bell size={18} />
                         )}
@@ -997,9 +1011,11 @@ export default function App() {
           <div className="page-heading">
             <div>
               <p className="eyebrow">✦ YOUR BUSINESS AT A GLANCE</p>
+
               <h1>
                 {page === "Dashboard" ? "Overview Dashboard" : page}
               </h1>
+
               <p>
                 Monitor your business performance and operations in one place.
               </p>
@@ -1020,8 +1036,7 @@ export default function App() {
               {dashboardError && (
                 <p className="error-message">{dashboardError}</p>
               )}
-
-              <div className="stats">
+                            <div className="stats">
                 {stats.map((stat) => {
                   const Icon = stat.icon;
 
@@ -1322,8 +1337,9 @@ export default function App() {
                           >
                             <div className="stock-product-info">
                               <div
-                                className={`stock-product-icon ${isOutOfStock ? "out" : "low"
-                                  }`}
+                                className={`stock-product-icon ${
+                                  isOutOfStock ? "out" : "low"
+                                }`}
                               >
                                 <Package size={19} />
                               </div>
@@ -1367,6 +1383,7 @@ export default function App() {
 
               <div className="system-banner">
                 <ShieldCheck size={24} />
+
                 <div>
                   <strong>System Connections</strong>
                   <p>
