@@ -33,7 +33,8 @@ async function connectToDatabase() {
     }
 
     if (!dbConnectionPromise) {
-      dbConnectionPromise = mongoose.connect(process.env.MONGO_URI)
+      dbConnectionPromise = mongoose
+        .connect(process.env.MONGO_URI)
         .catch((error) => {
           dbConnectionPromise = null;
           throw error;
@@ -66,6 +67,7 @@ app.use(async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Database initialization error:", error.message);
+
     res.status(503).json({
       message: "Service temporarily unavailable. Please try again."
     });
@@ -79,6 +81,7 @@ const userIdField = {
   index: true
 };
 
+// CUSTOMER MODEL
 const customerSchema = new mongoose.Schema(
   {
     userId: userIdField,
@@ -100,8 +103,11 @@ const customerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Customer = mongoose.model("Customer", customerSchema);
+const Customer =
+  mongoose.models.Customer ||
+  mongoose.model("Customer", customerSchema);
 
+// INVENTORY MODEL
 const inventorySchema = new mongoose.Schema(
   {
     userId: userIdField,
@@ -114,8 +120,11 @@ const inventorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Inventory = mongoose.model("Inventory", inventorySchema);
+const Inventory =
+  mongoose.models.Inventory ||
+  mongoose.model("Inventory", inventorySchema);
 
+// ORDER ITEM MODEL
 const orderItemSchema = new mongoose.Schema(
   {
     product: {
@@ -130,6 +139,7 @@ const orderItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// ORDER MODEL
 const orderSchema = new mongoose.Schema(
   {
     userId: userIdField,
@@ -151,8 +161,11 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Order = mongoose.model("Order", orderSchema);
+const Order =
+  mongoose.models.Order ||
+  mongoose.model("Order", orderSchema);
 
+// NOTIFICATION MODEL
 const notificationSchema = new mongoose.Schema(
   {
     userId: userIdField,
@@ -168,11 +181,11 @@ const notificationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Notification = mongoose.model(
-  "Notification",
-  notificationSchema
-);
+const Notification =
+  mongoose.models.Notification ||
+  mongoose.model("Notification", notificationSchema);
 
+// ADMIN MODEL
 const adminSchema = new mongoose.Schema(
   {
     name: {
@@ -199,8 +212,11 @@ const adminSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Admin = mongoose.model("Admin", adminSchema);
+const Admin =
+  mongoose.models.Admin ||
+  mongoose.model("Admin", adminSchema);
 
+// CREATE NOTIFICATION
 async function createNotification(userId, title, message, type) {
   try {
     await Notification.create({
@@ -214,6 +230,7 @@ async function createNotification(userId, title, message, type) {
   }
 }
 
+// STOCK CHANGE NOTIFICATIONS
 async function notifyStockChanges(userId, changes) {
   for (const change of changes) {
     const {
@@ -251,6 +268,7 @@ async function notifyStockChanges(userId, changes) {
   }
 }
 
+// AUTHENTICATION MIDDLEWARE
 async function authenticateToken(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -287,6 +305,7 @@ async function authenticateToken(req, res, next) {
   }
 }
 
+// HEALTH CHECK
 app.get("/api/health", (req, res) => {
   res.json({
     status: "healthy",
@@ -294,7 +313,7 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// First-time administrator setup
+// FIRST-TIME ADMINISTRATOR SETUP
 app.post("/api/auth/setup", async (req, res) => {
   try {
     const { name, email, password, setupKey } = req.body;
@@ -357,7 +376,7 @@ app.post("/api/auth/setup", async (req, res) => {
   }
 });
 
-// User signup
+// USER SIGNUP
 app.post("/api/auth/signup", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -425,7 +444,7 @@ app.post("/api/auth/signup", async (req, res) => {
   }
 });
 
-// Login
+// LOGIN
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -444,16 +463,6 @@ app.post("/api/auth/login", async (req, res) => {
     const admin = await Admin.findOne({
       email: email.trim().toLowerCase()
     });
-
-    console.log("Login email:", email.trim().toLowerCase());
-    console.log("Admin found:", !!admin);
-
-    if (admin) {
-      console.log(
-        "Password is bcrypt hashed:",
-        /^\$2[aby]\$/.test(admin.password)
-      );
-    }
 
     if (!admin) {
       return res.status(401).json({
@@ -496,15 +505,15 @@ app.post("/api/auth/login", async (req, res) => {
     });
   }
 });
-
-// Current logged-in userapp.get("/api/auth/me", authenticateToken, (req, res) => {
+// CURRENT LOGGED-IN USER
+app.get("/api/auth/me", authenticateToken, (req, res) => {
   res.json(req.admin);
+});
 
-
-// Protect all remaining API routes
+// PROTECT ALL REMAINING API ROUTES
 app.use("/api", authenticateToken);
 
-// Customer routes
+// CUSTOMER ROUTES
 
 app.get("/api/customers", async (req, res) => {
   try {
@@ -585,30 +594,42 @@ app.put("/api/customers/:id", async (req, res) => {
     }
 
     if (updates.name !== undefined) {
-      if (typeof updates.name !== "string" || !updates.name.trim()) {
+      if (
+        typeof updates.name !== "string" ||
+        !updates.name.trim()
+      ) {
         return res.status(400).json({
           message: "Customer name cannot be empty"
         });
       }
+
       updates.name = updates.name.trim();
     }
 
     if (updates.email !== undefined) {
-      if (typeof updates.email !== "string" || !updates.email.trim()) {
+      if (
+        typeof updates.email !== "string" ||
+        !updates.email.trim()
+      ) {
         return res.status(400).json({
           message: "Invalid email"
         });
       }
+
       updates.email = updates.email.trim().toLowerCase();
     }
 
     for (const field of ["phone", "city"]) {
       if (updates[field] !== undefined) {
-        if (typeof updates[field] !== "string" || !updates[field].trim()) {
+        if (
+          typeof updates[field] !== "string" ||
+          !updates[field].trim()
+        ) {
           return res.status(400).json({
             message: `Invalid ${field}`
           });
         }
+
         updates[field] = updates[field].trim();
       }
     }
@@ -699,7 +720,7 @@ app.delete("/api/customers/:id", async (req, res) => {
   }
 });
 
-// Order routes
+// ORDER ROUTES
 
 app.get("/api/orders", async (req, res) => {
   try {
@@ -717,6 +738,7 @@ app.get("/api/orders", async (req, res) => {
   }
 });
 
+// CREATE ORDER
 app.post("/api/orders", async (req, res) => {
   const session = await mongoose.startSession();
 
@@ -829,7 +851,9 @@ app.post("/api/orders", async (req, res) => {
           );
 
           if (!updatedProduct) {
-            throw new Error(`Insufficient stock for ${product.name}`);
+            throw new Error(
+              `Insufficient stock for ${product.name}`
+            );
           }
 
           stockChanges.push({
@@ -889,7 +913,8 @@ app.post("/api/orders", async (req, res) => {
     await session.endSession();
   }
 });
-// Update order status
+
+// UPDATE ORDER STATUS
 app.put("/api/orders/:id", async (req, res) => {
   const session = await mongoose.startSession();
 
@@ -1041,7 +1066,7 @@ app.put("/api/orders/:id", async (req, res) => {
   }
 });
 
-// Delete order
+// DELETE ORDER
 app.delete("/api/orders/:id", async (req, res) => {
   try {
     const order = await Order.findOne({
@@ -1084,8 +1109,7 @@ app.delete("/api/orders/:id", async (req, res) => {
     });
   }
 });
-
-// Inventory routes
+// INVENTORY ROUTES
 
 app.get("/api/inventory", async (req, res) => {
   try {
@@ -1103,6 +1127,7 @@ app.get("/api/inventory", async (req, res) => {
   }
 });
 
+// ADD PRODUCT
 app.post("/api/inventory", async (req, res) => {
   try {
     const {
@@ -1170,6 +1195,7 @@ app.post("/api/inventory", async (req, res) => {
   }
 });
 
+// UPDATE PRODUCT
 app.put("/api/inventory/:id", async (req, res) => {
   try {
     const allowed = [
@@ -1305,6 +1331,7 @@ app.put("/api/inventory/:id", async (req, res) => {
   }
 });
 
+// DELETE PRODUCT
 app.delete("/api/inventory/:id", async (req, res) => {
   try {
     const product = await Inventory.findOneAndDelete({
@@ -1337,7 +1364,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
   }
 });
 
-// Notification routes
+// NOTIFICATION ROUTES
 
 app.get("/api/notifications", async (req, res) => {
   try {
@@ -1357,6 +1384,7 @@ app.get("/api/notifications", async (req, res) => {
   }
 });
 
+// MARK ONE NOTIFICATION AS READ
 app.patch("/api/notifications/:id/read", async (req, res) => {
   try {
     const notification = await Notification.findOneAndUpdate(
@@ -1382,6 +1410,7 @@ app.patch("/api/notifications/:id/read", async (req, res) => {
   }
 });
 
+// MARK ALL NOTIFICATIONS AS READ
 app.patch("/api/notifications/read-all", async (req, res) => {
   try {
     await Notification.updateMany(
@@ -1404,6 +1433,7 @@ app.patch("/api/notifications/read-all", async (req, res) => {
   }
 });
 
+// DELETE ALL NOTIFICATIONS
 app.delete("/api/notifications", async (req, res) => {
   try {
     await Notification.deleteMany({
@@ -1420,7 +1450,7 @@ app.delete("/api/notifications", async (req, res) => {
   }
 });
 
-// Migrate existing data to the original Admin account
+// MIGRATE EXISTING DATA TO THE ORIGINAL ADMIN ACCOUNT
 async function migrateLegacyData() {
   try {
     const owner = await Admin.findOne().sort({
@@ -1429,7 +1459,9 @@ async function migrateLegacyData() {
     });
 
     if (!owner) {
-      console.log("No existing account found. Migration will retry later.");
+      console.log(
+        "No existing account found. Migration will retry later."
+      );
       return false;
     }
 
@@ -1471,5 +1503,5 @@ async function migrateLegacyData() {
   }
 }
 
-// Export Express app for Vercel Serverless deployment
+// EXPORT EXPRESS APP FOR VERCEL SERVERLESS DEPLOYMENT
 module.exports = app;
