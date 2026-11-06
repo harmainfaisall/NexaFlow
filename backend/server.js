@@ -444,8 +444,6 @@ app.post("/api/auth/signup", async (req, res) => {
   }
 });
 
-// LOGIN
-
  // LOGIN
 app.post("/api/auth/login", async (req, res) => {
   try {
